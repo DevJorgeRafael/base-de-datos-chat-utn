@@ -1,0 +1,143 @@
+// 1. ArchivoIsar
+TABLE ArchivoIsar {
+  id NUMBER
+  archivoCodigo VARCHAR2(20)
+  nombre VARCHAR2(100)
+  peso NUMBER
+  estado VARCHAR2(1) [NOTE: "'A' (activo), 'I' (inactivo)"]
+  ruta VARCHAR2(200)
+  mimeType VARCHAR2(100)
+  fechaSubida TIMESTAMP [NOTE: "Fecha en la que se subió el archivo"]
+}
+
+// 2. ClaveConversacionIsar
+TABLE ClaveConversacionIsar {
+  id NUMBER
+  conversacionCodigo VARCHAR2(20)
+  claveBase64 VARCHAR2(255) [NOTE: "Clave E2EE en base64"]
+}
+
+// 3. ConversacionGrupalIsar
+TABLE ConversacionGrupalIsar {
+  id NUMBER
+  conversacionCodigo VARCHAR2(20) [NOTE: "Concatenación de ID de room en backend, ej. FICA, FICA-d"]
+  tipo VARCHAR2(10) [NOTE: "Código de tipo de conversación grupal"]
+  nombre VARCHAR2(100)
+  estado VARCHAR2(1) [NOTE: "'A' (activo), 'I' (inactivo)"]
+  cicloAcademico VARCHAR2(20) [NOTE: "Ej. 2025A, 2025B"]
+}
+
+// 4. ConversacionIndividualIsar
+TABLE ConversacionIndividualIsar {
+  id NUMBER
+  conversacionCodigo VARCHAR2(20)
+  cuentaRemota VARCHAR2(20) [NOTE: "Cuenta del otro usuario"]
+  estado VARCHAR2(1) [NOTE: "'A' (activo), 'I' (inactivo)"]
+}
+
+// 5. EstadoEntregaMensajeIsar
+TABLE EstadoEntregaMensajeIsar {
+  id NUMBER
+  estadoCodigo VARCHAR2(10)
+  nombre VARCHAR2(20) [NOTE: "Ej. Enviado, Recibido, Leído, Pendiente"]
+}
+
+// 6. LecturaMensajeGrupalIsar
+TABLE LecturaMensajeGrupalIsar {
+  id NUMBER
+  lecturaCodigo VARCHAR2(20)
+  mensajeCodigo VARCHAR2(20)
+  usuarioCuenta VARCHAR2(20) [NOTE: "Usuario que leyó el mensaje"]
+  estadoEntregaCodigo VARCHAR2(10)
+  estado VARCHAR2(1) [NOTE: "'A' (activo), 'I' (inactivo)"]
+  fechaLectura TIMESTAMP [NOTE: "Fecha y hora de la lectura"]
+}
+
+// 7. LecturaMensajeGrupalPendienteIsar
+TABLE LecturaMensajeGrupalPendienteIsar {
+  id NUMBER
+  mensajeCodigo VARCHAR2(20) [NOTE: "Mensaje grupal aún no marcado como leído"]
+}
+
+// 8. LecturaMensajeIndividualPendienteIsar
+TABLE LecturaMensajeIndividualPendienteIsar {
+  id NUMBER
+  mensajeCodigo VARCHAR2(20) [NOTE: "Mensaje individual aún no marcado como leído"]
+  emisorCuenta VARCHAR2(20)
+}
+
+// 9. MensajeGrupalIsar
+TABLE MensajeGrupalIsar {
+  id NUMBER
+  mensajeCodigo VARCHAR2(20)
+  conversacionCodigo VARCHAR2(20)
+  emisorCuenta VARCHAR2(20)
+  estado VARCHAR2(1) [NOTE: "'A' (activo), 'I' (inactivo)"]
+  tipoMensajeCodigo VARCHAR2(10)
+  estadoEntregaCodigo VARCHAR2(10) [NOTE: "'0001': Enviado, '0002': Recibido, '0003': Leído, '0004': Pendiente"]
+  archivoCodigo VARCHAR2(20) [NOTE: "Puede ser null si es texto"]
+  contenido CLOB [NOTE: "Texto del mensaje si aplica"]
+  fecha TIMESTAMP
+  mensajePadreCodigo VARCHAR2(20) [NOTE: "Código del mensaje al que responde (opcional)"]
+}
+
+// 10. MensajeIndividualIsar
+TABLE MensajeIndividualIsar {
+  id NUMBER
+  mensajeCodigo VARCHAR2(20)
+  conversacionCodigo VARCHAR2(20)
+  emisorCuenta VARCHAR2(20)
+  receptorCuenta VARCHAR2(20)
+  estado VARCHAR2(1) [NOTE: "'A' (activo), 'I' (inactivo)"]
+  tipoMensajeCodigo VARCHAR2(10)
+  estadoEntregaCodigo VARCHAR2(10) [NOTE: "'0001': Enviado, '0002': Recibido, '0003': Leído, '0004': Pendiente"]
+  archivoCodigo VARCHAR2(20) [NOTE: "Puede ser null si es texto"]
+  contenido CLOB [NOTE: "Texto del mensaje si aplica"]
+  fecha TIMESTAMP
+  mensajePadreCodigo VARCHAR2(20) [NOTE: "Código del mensaje al que responde (opcional)"]
+}
+
+// 11. RedSocialCicloAcadIsar
+TABLE RedSocialCicloAcadIsar {
+  id NUMBER
+  codigo VARCHAR2(20)
+  descripcion VARCHAR2(100)
+  estado VARCHAR2(1) [NOTE: "'A' (activo), 'I' (inactivo)"]
+  mensajeApp VARCHAR2(100) [NOTE: "Mensaje para mostrar en la app"]
+  versionBddLocal NUMBER [NOTE: "Versión local de la base de datos"]
+  estadoApp VARCHAR2(1) [NOTE: "Estado general de la app ('A'/'I')"]
+}
+
+// 12. SilencioConversacionIsar
+TABLE SilencioConversacionIsar {
+  id NUMBER
+  silencioConversacionCodigo VARCHAR2(20)
+  usuarioCuenta VARCHAR2(20)
+  estado VARCHAR2(1) [NOTE: "'A' (activo), 'I' (inactivo)"]
+  conversacionIndividualCodigo VARCHAR2(20) [NOTE: "Si es una conversación individual"]
+  conversacionGrupalCodigo VARCHAR2(20) [NOTE: "Si es una conversación grupal"]
+}
+
+// 13. TipoConversacionGrupalIsar
+TABLE TipoConversacionGrupalIsar {
+  id NUMBER
+  tipoCodigo VARCHAR2(10)
+  nombre VARCHAR2(20) [NOTE: "Ej. Materia, Carrera, Facultad"]
+  categoria VARCHAR2(1) [NOTE: "'G': general, 'D': solo docentes"]
+}
+
+// 14. TipoMensajeIsar
+TABLE TipoMensajeIsar {
+  id NUMBER
+  tipoCodigo VARCHAR2(10)
+  nombre VARCHAR2(20) [NOTE: "Ej. Texto, Imagen, Archivo"]
+  descripcion VARCHAR2(100) [NOTE: "Descripción del tipo de mensaje"]
+}
+
+// 15. UsuarioIsar
+TABLE UsuarioIsar {
+  id NUMBER
+  cuenta VARCHAR2(20)
+  nombre VARCHAR2(100)
+  emailInstitucional VARCHAR2(100)
+}
