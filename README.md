@@ -1,32 +1,50 @@
 # Base de Datos – Chat UTN
 
-Este repositorio contiene el modelo de datos de la **Red Social de Mensajería (Chat UTN)**.  
+Este repositorio contiene los modelos de datos utilizados en el sistema de mensajería institucional **Chat UTN**, desarrollado para la Universidad Técnica del Norte. Se incluyen dos representaciones complementarias:
+
+- 📦 **`backend-oracle/`** → Modelo relacional para Oracle (SQL completo con vistas, triggers, procedimientos, etc.)
+- 📱 **`frontend-flutter-isar/`** → Representación de datos NoSQL usando colecciones Isar (base de datos local en Flutter)
 
 ---
 
-## 📌 Modelo Entidad-Relación
+## 📁 Estructura del repositorio
+```
+│
+├── README.md
+├── backend-oracle/
+│   ├── base-de-datos-completa.sql
+│   ├── chat-utn-entidad-relacion-oracle.png
+│   └── modelo-entidad-relacion-oracle.txt
+│
+└── frontend-flutter-isar/
+    ├── chat-utn-colecciones-isar.png
+    └── chat-utn-colecciones-isar.txt
+```
 
-El modelo entidad-relación se puede visualizar directamente aquí:
 
-![Modelo Entidad-Relación](./chat-utn-entidad-relacion.png)
+## 🔗 Enlaces rápidos
 
-### Otras formas de verlo
-- Si desea ver el diagrama con **notas, claves y relaciones interactivas**, puede abrir el archivo [`modelo-entidad-relacion.txt`](./modelo-entidad-relacion.txt) en [dbdiagram.io](https://dbdiagram.io).  
-- También puede acceder directamente al diagrama en línea desde este enlace:  
-  👉 [Ver en dbdiagram.io](https://dbdiagram.io/d/bdRedSocialMensajeria-Version-final-68a7ac221e7a6119670d8d4f)
+### 📌 Modelo relacional (Oracle)
+Este modelo representa las **tablas del backend Oracle**, con relaciones explícitas (foreign keys), tipos de datos, vistas, procedimientos y triggers definidos.
+![Modelo Entidad-Relación Oracle](./backend-oracle/chat-utn-entidad-relacion-oracle.png)
 
----
+- 📝 [Ver diagrama interactivo en dbdiagram.io](https://dbdiagram.io/d/bdRedSocialMensajeria-Version-final-68a7ac221e7a6119670d8d4f)
+- 📄 [`modelo-entidad-relacion-oracle.txt`](./backend-oracle/modelo-entidad-relacion-oracle.txt)
 
-## 📌 Modelo Físico
 
-El modelo físico completo se encuentra en [`base-de-datos-completa.sql`](./base-de-datos-completa.sql).  
-Este script incluye:
+### 📌 Modelo NoSQL (Isar - Flutter)
 
-- Creación de tablas  
-- Vistas  
-- Procedures  
-- Índices  
-- Secuencias y triggers para generación automática de códigos  
+Esta representación refleja la estructura de datos local en Flutter usando **Isar**, una base de datos NoSQL.  
+A diferencia del modelo relacional, aquí no existen claves foráneas ni relaciones explícitas.  
+Cada `@Collection()` se representa como una tabla independiente, con campos que pueden referenciar códigos de otras colecciones, pero sin uniones automáticas ni integridad referencial forzada.
+
+> Esta es una forma de representar estructuras NoSQL en estilo entidad-tabla, útil para documentar o visualizar cómo se organizan los datos dentro de Isar.
+
+![Colecciones Isar](./frontend-flutter-isar/chat-utn-colecciones-isar.png)
+
+- 📝 [Ver representación interactiva en dbdiagram.io](https://dbdiagram.io/d/UTN-Movil-Red-Social-Flutter-Version-Final-68640f62f413ba3508c384ca)
+- 📄 [`chat-utn-colecciones-isar.txt`](./frontend-flutter-isar/chat-utn-colecciones-isar.txt)
+
 
 ---
 
@@ -65,12 +83,3 @@ Para el despliegue en el entorno de producción de la **Red Social de Mensajerí
 
 En caso de dudas o de requerir ajustes de permisos adicionales, el equipo de desarrollo puede coordinar directamente con DDTI.
 
-
-## 🗂️ Archivos del repositorio
-
-- `chat-utn-entidad-relacion.png` → Imagen del diagrama ER  
-- `modelo-entidad-relacion.txt` → Definición ER en formato dbdiagram.io  
-- `base-de-datos-completa.sql` → Script SQL con modelo físico completo  
-- `README.md` → Este archivo  
-
----
