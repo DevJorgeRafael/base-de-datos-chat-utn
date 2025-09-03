@@ -17,7 +17,7 @@ Este repositorio contiene los modelos de datos utilizados en el sistema de mensa
 │   └── modelo-entidad-relacion-oracle.txt
 │
 └── frontend-flutter-isar/
-    ├── chat-utn-colecciones-isar.png
+    ├── chat-utn-colecciones-flutter-isar.png
     └── chat-utn-colecciones-isar.txt
 ```
 
@@ -40,7 +40,7 @@ Cada `@Collection()` se representa como una tabla independiente, con campos que 
 
 > Esta es una forma de representar estructuras NoSQL en estilo entidad-tabla, útil para documentar o visualizar cómo se organizan los datos dentro de Isar.
 
-![Colecciones Isar](./frontend-flutter-isar/chat-utn-colecciones-isar.png)
+![Colecciones Isar](./frontend-flutter-isar/chat-utn-colecciones-flutter-isar.png)
 
 - 📝 [Ver representación interactiva en dbdiagram.io](https://dbdiagram.io/d/UTN-Movil-Red-Social-Flutter-Version-Final-68640f62f413ba3508c384ca)
 - 📄 [`chat-utn-colecciones-isar.txt`](./frontend-flutter-isar/chat-utn-colecciones-isar.txt)
