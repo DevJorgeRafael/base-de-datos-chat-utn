@@ -258,6 +258,468 @@ WHERE
     AND m.DEPEN_CODIGO NOT IN ('00263', '00194');
 
 
+
+--------------------------------------------------- MIEMBROS DE GRUPOS ---------------------------------------------
+--- Obtener miembros de una asignatura por CODIGO_CICLO y CODIGO_MATERIA
+CREATE OR REPLACE FORCE VIEW MOVIL_UTN.MVL_VIEW_MIEMBROS_ASIGNATURA
+(TIPO, CUENTA, CEDULA, NOMBRE, EMAIL_INSTITUCIONAL, 
+ CODIGO_MATERIA, NOMBRE_MATERIA, CODIGO_CICLO, CICLO_ACADEMICO)
+BEQUEATH DEFINER
+AS 
+SELECT DISTINCT "TIPO","CUENTA","CEDULA","NOMBRE","EMAIL_INSTITUCIONAL","CODIGO_MATERIA","NOMBRE_MATERIA","CODIGO_CICLO","CICLO_ACADEMICO" FROM (
+        -- Estudiantes
+        SELECT
+            'Estudiante' AS TIPO,
+            TU.CUENTA,
+            DM.ESTUDIANTE_CEDULA AS CEDULA,
+            INITCAP(
+                P.PRIMER_NOMBRE || ' ' || NVL(P.SEGUNDO_NOMBRE, '') || ' ' ||
+                P.PRIMER_APELLIDO || ' ' || NVL(P.SEGUNDO_APELLIDO, '')
+            ) AS NOMBRE,
+            P.EMAIL_INSTITUCIONAL,
+            M.CODIGO AS CODIGO_MATERIA,
+            M.DESCRIPCION AS NOMBRE_MATERIA,
+            CA.CODIGO AS CODIGO_CICLO,
+            CA.DESCRIPCION AS CICLO_ACADEMICO
+        FROM ACA_TAB_DETALLE_MATRICULAS DM
+        JOIN ACA_TAB_MATRICULAS MA
+            ON MA.CODIGO = DM.MATRICULA_CODIGO
+            AND MA.ESTUDIANTE_CEDULA = DM.ESTUDIANTE_CEDULA
+        JOIN ACA_TAB_MATERIAS M
+            ON M.CODIGO = DM.MATERIA_CODIGO
+            AND M.NIVEL_CODIGO = DM.NIVEL_CODIGO
+        JOIN ACA_TAB_CICLOS_ACADEMICOS CA
+            ON CA.CODIGO = DM.CICLO_ACAD_CODIGO
+        JOIN RHU_TAB_PERSONAS P
+            ON P.CEDULA = DM.ESTUDIANTE_CEDULA
+        JOIN (
+            SELECT PERSONA_CEDULA, MIN(CUENTA) AS CUENTA
+            FROM INS_TAB_USUARIOS
+            GROUP BY PERSONA_CEDULA
+        ) TU ON TU.PERSONA_CEDULA = P.CEDULA
+        WHERE DM.ANULACION NOT IN ('S')
+            AND MA.ESTADO IN ('R', 'C', 'M')
+            AND MA.NIVEL_CODIGO NOT IN ('AD')
+            AND MA.DEPEN_CODIGO NOT IN ('00263')
+
+        UNION ALL
+
+        -- Docentes (una fila por docente/cedula)
+        SELECT
+            'Docente' AS TIPO,
+            MIN(TU.CUENTA) AS CUENTA,
+            D.DOCENTE_CEDULA AS CEDULA,
+            INITCAP(
+                MIN(P.PRIMER_NOMBRE || ' ' || NVL(P.SEGUNDO_NOMBRE, '') || ' ' ||
+                    P.PRIMER_APELLIDO || ' ' || NVL(P.SEGUNDO_APELLIDO, ''))
+            ) AS NOMBRE,
+            MIN(P.EMAIL_INSTITUCIONAL) AS EMAIL_INSTITUCIONAL,
+            D.MATERIA_CODIGO AS CODIGO_MATERIA,
+            MIN(M.DESCRIPCION) AS NOMBRE_MATERIA,
+            C.CODIGO AS CODIGO_CICLO,
+            MIN(C.DESCRIPCION) AS CICLO_ACADEMICO
+        FROM ACA_TAB_DISTRIBUTIVOS D
+        JOIN ACA_TAB_MATERIAS M
+            ON M.CODIGO = D.MATERIA_CODIGO
+        JOIN ACA_TAB_CICLOS_ACADEMICOS C
+            ON C.CODIGO = D.CICLO_ACAD_CODIGO
+        JOIN RHU_TAB_PERSONAS P
+            ON P.CEDULA = D.DOCENTE_CEDULA
+        JOIN (
+            SELECT PERSONA_CEDULA, MIN(CUENTA) AS CUENTA
+            FROM INS_TAB_USUARIOS
+            GROUP BY PERSONA_CEDULA
+        ) TU ON TU.PERSONA_CEDULA = P.CEDULA
+        WHERE M.DEPEN_CODIGO NOT IN ('00263', '00194')
+            AND TU.CUENTA LIKE 'D%'
+        GROUP BY D.DOCENTE_CEDULA, D.MATERIA_CODIGO, C.CODIGO
+    );
+
+
+-- Obtener miembros de una carrera por CODIGO_CICLO y CODIGO_CARRERA
+CREATE OR REPLACE FORCE VIEW MOVIL_UTN.MVL_VIEW_MIEMBROS_CARRERA
+(TIPO, CUENTA, CEDULA, NOMBRE, EMAIL_INSTITUCIONAL, 
+ SIGLAS_FACULTAD, NOMBRE_FACULTAD, CODIGO_CICLO, CICLO_ACADEMICO, CODIGO_CARRERA, 
+ NOMBRE_CARRERA)
+BEQUEATH DEFINER
+AS 
+SELECT DISTINCT
+        'Estudiante' AS TIPO,
+        TU.CUENTA,
+        MA.ESTUDIANTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        RD.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        RD.FACULTAD AS NOMBRE_FACULTAD,
+        CA.CODIGO AS CODIGO_CICLO,
+        CA.DESCRIPCION AS CICLO_ACADEMICO,
+        RD.CODIGO_CA AS CODIGO_CARRERA,
+        RD.CARRERA AS NOMBRE_CARRERA
+    FROM ACA_TAB_MATRICULAS MA
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = MA.ESTUDIANTE_CEDULA
+    JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN ACA_TAB_DEPENDENCIAS D ON MA.DEPEN_CODIGO = D.CODIGO
+    JOIN REC_VIEW_DEPENDENCIAS RD ON D.CODIGO = RD.CODIGO_CA
+    JOIN ACA_TAB_CICLOS_ACADEMICOS CA ON MA.CICLO_ACAD_CODIGO = CA.CODIGO
+    WHERE MA.NIVEL_CODIGO NOT IN ('99', '00')
+    AND MA.ESTADO IN ('M', 'R', 'C')
+    AND TU.CUENTA IS NOT NULL
+    AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+    AND P.PRIMER_NOMBRE IS NOT NULL
+    AND P.PRIMER_APELLIDO IS NOT NULL
+    
+    UNION ALL
+    
+    -- Docentes de la carrera
+    SELECT DISTINCT
+        'Docente' AS TIPO,
+        TU.CUENTA,
+        D.DOCENTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        RD.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        RD.FACULTAD AS NOMBRE_FACULTAD,
+        C.CODIGO AS CODIGO_CICLO,
+        C.DESCRIPCION AS CICLO_ACADEMICO,
+        RD.CODIGO_CA AS CODIGO_CARRERA,
+        RD.CARRERA AS NOMBRE_CARRERA
+    FROM ACA_TAB_DISTRIBUTIVOS D
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = D.DOCENTE_CEDULA
+    LEFT JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN REC_VIEW_DEPENDENCIAS RD ON RD.CODIGO_CA = D.DEPEN_CODIGO
+    JOIN ACA_TAB_CICLOS_ACADEMICOS C ON C.CODIGO = D.CICLO_ACAD_CODIGO
+    WHERE 
+        -- Excluye dependencias administrativas específicas
+        D.DEPEN_CODIGO NOT IN ('00263', '00194')
+        -- Excluye nivel '00' que corresponde a actividades de titulación, vinculación y otras 
+        -- actividades académicas especiales que no forman parte del currículo regular
+        AND D.NIVEL_CODIGO != '00'
+        -- Excluye materias de tipo '04' y '07' (ACTIVIDADES) que corresponden a:
+        -- Trabajos de titulación, proyectos de vinculación, prácticas pre-profesionales
+        -- Estas no son asignaturas oficiales del plan de estudios regular de las carreras
+        AND D.MATERIA_CODIGO NOT IN (
+            SELECT CODIGO FROM ACA_TAB_MATERIAS WHERE TMATERIA_CODIGO IN ('04', '07')
+        )
+        AND TU.CUENTA LIKE 'D%'
+        AND LENGTH(TU.CUENTA) = 11
+        AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+        AND P.PRIMER_NOMBRE IS NOT NULL
+        AND P.PRIMER_APELLIDO IS NOT NULL;
+
+
+-- Obtener miembros de una carrera de SÓLO DOCENTES por CODIGO_CICLO y CODIGO_CARRERA
+CREATE OR REPLACE FORCE VIEW MOVIL_UTN.MVL_VIEW_MIEMBROS_CARRERA_DOCENTES
+(TIPO, CUENTA, CEDULA, NOMBRE, EMAIL_INSTITUCIONAL, 
+ SIGLAS_FACULTAD, NOMBRE_FACULTAD, CODIGO_CICLO, CICLO_ACADEMICO, CODIGO_CARRERA, 
+ NOMBRE_CARRERA)
+BEQUEATH DEFINER
+AS 
+SELECT DISTINCT
+        'Docente' AS TIPO,
+        TU.CUENTA,
+        D.DOCENTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        RD.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        RD.FACULTAD AS NOMBRE_FACULTAD,
+        C.CODIGO AS CODIGO_CICLO,
+        C.DESCRIPCION AS CICLO_ACADEMICO,
+        RD.CODIGO_CA AS CODIGO_CARRERA,
+        RD.CARRERA AS NOMBRE_CARRERA
+    FROM ACA_TAB_DISTRIBUTIVOS D
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = D.DOCENTE_CEDULA
+    LEFT JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN REC_VIEW_DEPENDENCIAS RD ON RD.CODIGO_CA = D.DEPEN_CODIGO
+    JOIN ACA_TAB_CICLOS_ACADEMICOS C ON C.CODIGO = D.CICLO_ACAD_CODIGO
+    WHERE 
+        -- Excluye dependencias administrativas específicas
+        D.DEPEN_CODIGO NOT IN ('00263', '00194')
+        -- Excluye nivel '00' que corresponde a actividades de titulación, vinculación y otras 
+        -- actividades académicas especiales que no forman parte del currículo regular
+        AND D.NIVEL_CODIGO != '00'
+        -- Excluye materias de tipo '04' y '07' (ACTIVIDADES) que corresponden a:
+        -- Trabajos de titulación, proyectos de vinculación, prácticas pre-profesionales
+        -- Estas no son asignaturas oficiales del plan de estudios regular de las carreras
+        AND D.MATERIA_CODIGO NOT IN (
+            SELECT CODIGO FROM ACA_TAB_MATERIAS WHERE TMATERIA_CODIGO IN ('04', '07')
+        )
+        AND TU.CUENTA LIKE 'D%'
+        AND LENGTH(TU.CUENTA) = 11
+        AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+        AND P.PRIMER_NOMBRE IS NOT NULL
+        AND P.PRIMER_APELLIDO IS NOT NULL;
+
+
+-- Obtener miembros de una facultad por SIGLAS_FACULTAD y CODIGO_CICLO
+CREATE OR REPLACE FORCE VIEW MOVIL_UTN.MVL_VIEW_MIEMBROS_FACULTAD
+(TIPO, CUENTA, CEDULA, NOMBRE, EMAIL_INSTITUCIONAL, 
+ SIGLAS_FACULTAD, NOMBRE_FACULTAD, CODIGO_CICLO, CICLO_ACADEMICO)
+BEQUEATH DEFINER
+AS 
+SELECT DISTINCT
+        'Estudiante' AS TIPO,
+        TU.CUENTA,
+        MA.ESTUDIANTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        D3.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        D3.FACULTAD AS NOMBRE_FACULTAD,
+        CA.CODIGO AS CODIGO_CICLO,
+        CA.DESCRIPCION AS CICLO_ACADEMICO
+    FROM ACA_TAB_MATRICULAS MA
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = MA.ESTUDIANTE_CEDULA
+    JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN ACA_TAB_DEPENDENCIAS D1 ON MA.DEPEN_CODIGO = D1.CODIGO
+    JOIN REC_VIEW_DEPENDENCIAS D3 ON D1.CODIGO = D3.CODIGO_CA
+    JOIN ACA_TAB_CICLOS_ACADEMICOS CA ON MA.CICLO_ACAD_CODIGO = CA.CODIGO
+    WHERE MA.NIVEL_CODIGO NOT IN ('99', '00')
+    AND MA.ESTADO NOT IN ('P', 'A')
+    AND TU.CUENTA IS NOT NULL
+    AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+    AND P.PRIMER_NOMBRE IS NOT NULL
+    AND P.PRIMER_APELLIDO IS NOT NULL
+    
+    UNION ALL
+    
+    -- Docentes de la facultad
+    SELECT DISTINCT
+        'Docente' AS TIPO,
+        TU.CUENTA,
+        D.DOCENTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        RD.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        RD.FACULTAD AS NOMBRE_FACULTAD,
+        C.CODIGO AS CODIGO_CICLO,
+        C.DESCRIPCION AS CICLO_ACADEMICO
+    FROM ACA_TAB_DISTRIBUTIVOS D
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = D.DOCENTE_CEDULA
+    LEFT JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN REC_VIEW_DEPENDENCIAS RD ON RD.CODIGO_CA = D.DEPEN_CODIGO
+    JOIN ACA_TAB_CICLOS_ACADEMICOS C ON C.CODIGO = D.CICLO_ACAD_CODIGO
+    WHERE 
+        -- Excluye dependencias administrativas específicas
+        D.DEPEN_CODIGO NOT IN ('00263', '00194')
+        -- Excluye nivel '00' que corresponde a actividades de titulación, vinculación y otras 
+        -- actividades académicas especiales que no forman parte del currículo regular
+        AND D.NIVEL_CODIGO != '00'
+        -- Excluye materias de tipo '04' y '07' (ACTIVIDADES) que corresponden a:
+        -- Trabajos de titulación, proyectos de vinculación, prácticas pre-profesionales
+        -- Estas no son asignaturas oficiales del plan de estudios regular de las carreras
+        AND D.MATERIA_CODIGO NOT IN (
+            SELECT CODIGO FROM ACA_TAB_MATERIAS WHERE TMATERIA_CODIGO IN ('04', '07')
+        )
+        AND TU.CUENTA LIKE 'D%'
+        AND LENGTH(TU.CUENTA) = 11
+        AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+        AND P.PRIMER_NOMBRE IS NOT NULL
+        AND P.PRIMER_APELLIDO IS NOT NULL;
+
+
+-- Obtener miembros de una facultad por SIGLAS_FACULTAD y CODIGO_CICLO
+CREATE OR REPLACE FORCE VIEW MOVIL_UTN.MVL_VIEW_MIEMBROS_FACULTAD
+(TIPO, CUENTA, CEDULA, NOMBRE, EMAIL_INSTITUCIONAL, 
+ SIGLAS_FACULTAD, NOMBRE_FACULTAD, CODIGO_CICLO, CICLO_ACADEMICO)
+BEQUEATH DEFINER
+AS 
+SELECT DISTINCT
+        'Estudiante' AS TIPO,
+        TU.CUENTA,
+        MA.ESTUDIANTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        D3.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        D3.FACULTAD AS NOMBRE_FACULTAD,
+        CA.CODIGO AS CODIGO_CICLO,
+        CA.DESCRIPCION AS CICLO_ACADEMICO
+    FROM ACA_TAB_MATRICULAS MA
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = MA.ESTUDIANTE_CEDULA
+    JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN ACA_TAB_DEPENDENCIAS D1 ON MA.DEPEN_CODIGO = D1.CODIGO
+    JOIN REC_VIEW_DEPENDENCIAS D3 ON D1.CODIGO = D3.CODIGO_CA
+    JOIN ACA_TAB_CICLOS_ACADEMICOS CA ON MA.CICLO_ACAD_CODIGO = CA.CODIGO
+    WHERE MA.NIVEL_CODIGO NOT IN ('99', '00')
+    AND MA.ESTADO NOT IN ('P', 'A')
+    AND TU.CUENTA IS NOT NULL
+    AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+    AND P.PRIMER_NOMBRE IS NOT NULL
+    AND P.PRIMER_APELLIDO IS NOT NULL
+    
+    UNION ALL
+    
+    -- Docentes de la facultad
+    SELECT DISTINCT
+        'Docente' AS TIPO,
+        TU.CUENTA,
+        D.DOCENTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        RD.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        RD.FACULTAD AS NOMBRE_FACULTAD,
+        C.CODIGO AS CODIGO_CICLO,
+        C.DESCRIPCION AS CICLO_ACADEMICO
+    FROM ACA_TAB_DISTRIBUTIVOS D
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = D.DOCENTE_CEDULA
+    LEFT JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN REC_VIEW_DEPENDENCIAS RD ON RD.CODIGO_CA = D.DEPEN_CODIGO
+    JOIN ACA_TAB_CICLOS_ACADEMICOS C ON C.CODIGO = D.CICLO_ACAD_CODIGO
+    WHERE 
+        -- Excluye dependencias administrativas específicas
+        D.DEPEN_CODIGO NOT IN ('00263', '00194')
+        -- Excluye nivel '00' que corresponde a actividades de titulación, vinculación y otras 
+        -- actividades académicas especiales que no forman parte del currículo regular
+        AND D.NIVEL_CODIGO != '00'
+        -- Excluye materias de tipo '04' y '07' (ACTIVIDADES) que corresponden a:
+        -- Trabajos de titulación, proyectos de vinculación, prácticas pre-profesionales
+        -- Estas no son asignaturas oficiales del plan de estudios regular de las carreras
+        AND D.MATERIA_CODIGO NOT IN (
+            SELECT CODIGO FROM ACA_TAB_MATERIAS WHERE TMATERIA_CODIGO IN ('04', '07')
+        )
+        AND TU.CUENTA LIKE 'D%'
+        AND LENGTH(TU.CUENTA) = 11
+        AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+        AND P.PRIMER_NOMBRE IS NOT NULL
+        AND P.PRIMER_APELLIDO IS NOT NULL;
+
+
+-- Obtener miembros de una facultad de SÓLO DOCENTES por SIGLAS_FACULTAD y CODIGO_CICLO
+CREATE OR REPLACE FORCE VIEW MOVIL_UTN.MVL_VIEW_MIEMBROS_FACULTAD_DOCENTES
+(TIPO, CUENTA, CEDULA, NOMBRE, EMAIL_INSTITUCIONAL, 
+ SIGLAS_FACULTAD, NOMBRE_FACULTAD, CODIGO_CICLO, CICLO_ACADEMICO)
+BEQUEATH DEFINER
+AS 
+SELECT DISTINCT
+        'Docente' AS TIPO,
+        TU.CUENTA,
+        D.DOCENTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        RD.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        RD.FACULTAD AS NOMBRE_FACULTAD,
+        C.CODIGO AS CODIGO_CICLO,
+        C.DESCRIPCION AS CICLO_ACADEMICO
+    FROM ACA_TAB_DISTRIBUTIVOS D
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = D.DOCENTE_CEDULA
+    LEFT JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN REC_VIEW_DEPENDENCIAS RD ON RD.CODIGO_CA = D.DEPEN_CODIGO
+    JOIN ACA_TAB_CICLOS_ACADEMICOS C ON C.CODIGO = D.CICLO_ACAD_CODIGO
+    WHERE 
+        -- Excluye dependencias administrativas específicas
+        D.DEPEN_CODIGO NOT IN ('00263', '00194')
+        -- Excluye nivel '00' que corresponde a actividades de titulación, vinculación y otras 
+        -- actividades académicas especiales que no forman parte del currículo regular
+        AND D.NIVEL_CODIGO != '00'
+        -- Excluye materias de tipo '04' y '07' (ACTIVIDADES) que corresponden a:
+        -- Trabajos de titulación, proyectos de vinculación, prácticas pre-profesionales
+        -- Estas no son asignaturas oficiales del plan de estudios regular de las carreras
+        AND D.MATERIA_CODIGO NOT IN (
+            SELECT CODIGO FROM ACA_TAB_MATERIAS WHERE TMATERIA_CODIGO IN ('04', '07')
+        )
+        AND TU.CUENTA LIKE 'D%'
+        AND LENGTH(TU.CUENTA) = 11
+        AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+        AND P.PRIMER_NOMBRE IS NOT NULL
+        AND P.PRIMER_APELLIDO IS NOT NULL;
+
+
+-- Obtener miembros de la conversación UTN Docentes 
+CREATE OR REPLACE FORCE VIEW MOVIL_UTN.MVL_VIEW_MIEMBROS_UTN_DOCENTE
+(TIPO, CUENTA, CEDULA, NOMBRE, EMAIL_INSTITUCIONAL, 
+ SIGLAS_FACULTAD, NOMBRE_FACULTAD, CODIGO_CICLO, CICLO_ACADEMICO)
+BEQUEATH DEFINER
+AS 
+SELECT DISTINCT
+        'Docente' AS TIPO,
+        TU.CUENTA,
+        D.DOCENTE_CEDULA AS CEDULA,
+        INITCAP(
+            TRIM(
+                TRIM(NVL(P.PRIMER_NOMBRE, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_NOMBRE, '')) || ' ' ||
+                TRIM(NVL(P.PRIMER_APELLIDO, '')) || ' ' || 
+                TRIM(NVL(P.SEGUNDO_APELLIDO, ''))
+            )
+        ) AS NOMBRE,
+        P.EMAIL_INSTITUCIONAL,
+        RD.SIGLAS_FAC AS SIGLAS_FACULTAD,
+        RD.FACULTAD AS NOMBRE_FACULTAD,
+        C.CODIGO AS CODIGO_CICLO,
+        C.DESCRIPCION AS CICLO_ACADEMICO
+    FROM ACA_TAB_DISTRIBUTIVOS D
+    JOIN RHU_TAB_PERSONAS P ON P.CEDULA = D.DOCENTE_CEDULA
+    LEFT JOIN INS_TAB_USUARIOS TU ON TU.PERSONA_CEDULA = P.CEDULA
+    JOIN REC_VIEW_DEPENDENCIAS RD ON RD.CODIGO_CA = D.DEPEN_CODIGO
+    JOIN ACA_TAB_CICLOS_ACADEMICOS C ON C.CODIGO = D.CICLO_ACAD_CODIGO
+    --PENDIENTE DE REVISIÓN PARA LA REVISIÓN: Verificar si las siglas de facultades están completas
+    WHERE D.DEPEN_CODIGO NOT IN ('00263', '00194')
+    --AND D.NIVEL_CODIGO != '00'
+    --AND D.MATERIA_CODIGO NOT IN (
+        --SELECT CODIGO FROM ACA_TAB_MATERIAS WHERE TMATERIA_CODIGO IN ('04', '07')
+    --)
+    AND TU.CUENTA LIKE 'D%'
+    AND LENGTH(TU.CUENTA) = 11
+    AND RD.SIGLAS_FAC IN ('FICA', 'FECYT', 'FICAYA', 'FACAE', 'FCCSS')
+    AND P.EMAIL_INSTITUCIONAL IS NOT NULL
+    AND P.PRIMER_NOMBRE IS NOT NULL
+    AND P.PRIMER_APELLIDO IS NOT NULL;
+
+
 -------------------------------------------------------------------------------------------------------------------
 --------------------------------------------- CREACION DE TABLAS Y TRIGGERS ---------------------------------------
 -------------------------------------------------------------------------------------------------------------------
